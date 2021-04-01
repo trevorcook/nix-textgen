@@ -49,7 +49,7 @@ in rec {
                     else unlines [
                       ">"
                       ((self.nest "attrs") children)
-                      ''</${name}>''];
+                      (self.indent-str ''</${name}>'')];
         in (self.indent-str ''<${name}${attrStr}'') + therest;
     };
   };
