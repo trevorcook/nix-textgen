@@ -2,7 +2,7 @@
 let
   unlines = concatStringsSep "\n" ;
   repeatStr = n: str: concatStrings (map (_: str) (range 1 n));
-
+  isNone = arg: isNull arg || arg == {} || arg == [];
 
 in rec {
   nu = methods: attrs:
@@ -17,57 +17,50 @@ in rec {
       out = attrs // (mapAttrs mkMethod methods);
     in out;
 
-
-  # tracks the indent level of of a nix expression with some special
-  # cases, no indent at "top" or attrs followed by list.
-  meth1 = nu {
-    inc = self: { level = self.level + 1; };
-    dec = self: { level = self.level - 1; };
-
-    inherit (mks) nest-in indent-str;
-    } { level = 0; tab=2; };
-
-
-  fix = f: let x = f x; in x;
-  nu' = methods: attrs:
-    let
-      ap = arg: nu' methods (attrs // arg);
-      mkMethod = name: f: ap (f out);
-      out = attrs // (mapAttrs mkMethod methods);
-    in out;
-
-  meth2 = nu' {
-    inc = self:  self.up ;
-    up = self: { level = self.level + 1; };
-    } { level = 0; };
-
-
-  # tracks the indent level of of a nix expression with some special
-  # cases, no indent at "top" or attrs followed by list.
-  mks = {
-    nest-in = self@{ above?"top", level?0,... }: type:
-      if "top" == above || (type == "attrs" && above == "list") then
-        { above = type; inherit level;}
-      else { above = type; level = level + 1; };
-    indent-str = params@{level?0,tab?2,...}: str:
-      repeatStr level (repeatStr tab " ") + str;
+  methods = {
+    stdDispatch.eval = self: arg:
+      if isList arg then
+        self.evalList arg
+      else if isAttrs arg then
+        self.evalAttrs arg
+      else self.evalOther arg;
+    simpleNest = {
+      __functor = _: self: self.eval;
+      inherit (methods.stdDispatch) eval;
+      evalList = self: ls: unlines (map (self.nest "list") ls);
+      evalAttrs = self: attrs:
+        unlines (mapAttrsToList (self.nest "attrs").evalAttr attrs);
+      evalAttr = self: name: value: self value;
+      evalOther = self: value: self.indent-str (toString value);
+      nest = self@{ above?"top", level?0,... }: type:
+        if "top" == above || (type == "attrs" && above == "list") then
+          { above = type; inherit level;}
+        else { above = type; level = level + 1; };
+      indent-str = self@{level?0,tab?2,...}: str:
+        repeatStr level (repeatStr tab " ") + str;
+    };
+    simpleXML = {
+      __functor = _: self: self.eval;
+      inherit (methods.stdDispatch) eval;
+      inherit (methods.simpleNest) evalList evalAttrs nest indent-str;
+      evalAttr = self: name: value@{attrs?{},children?[]}:
+        let
+          attrStr = concatStrings (mapAttrsToList nvp attrs);
+          nvp = name: value: '' ${name}="${toString value}"'';
+          therest = if isNone children then ''/>''
+                    else unlines [
+                      ">"
+                      ((self.nest "attrs") children)
+                      ''</${name}>''];
+        in (self.indent-str ''<${name}${attrStr}'') + therest;
+    };
   };
 
+  simpleNest = nu methods.simpleNest {level=0; tab=2; above="top";};
+  simpleXML = nu methods.simpleXML {level=0; tab=2; above="top";};
 
-  indentNesting = nu {
-    inherit (mks) nest-in indent-str;
-    eval = self: body:
-      if isList body then
-        unlines (map (self.nest-in "list").eval body)
-      else if isAttrs body then
-        self.evalAttrs body
-      else self.indent-str (toString body);
-    evalAttrs = self: attrs:
-      unlines (mapAttrsToList (self.nest-in "attrs").evalAttr attrs);
-    evalAttr = self: name: value: self.eval value;
 
-    }
-    {level = 0; tab = 2; above = "top";};
+
 
 
 

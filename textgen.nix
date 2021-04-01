@@ -2,5 +2,5 @@
   let
     evalDoc = import ./evalDoc.nix { inherit lib writeTextFile symlinkJoin;};
     toText = import ./toText.nix {inherit lib;};
-    doclib = evalDoc // { inherit toText; };
+    doclib = evalDoc // { inherit toText; inherit (toText) nu; };
   in doclib
