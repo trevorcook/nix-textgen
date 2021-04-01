@@ -1,4 +1,4 @@
-{ lib, }: with lib;
+{ lib }: with lib;
 let
   unlines = concatStringsSep "\n" ;
   repeatStr = n: str: concatStrings (map (_: str) (range 1 n));
@@ -18,15 +18,16 @@ in rec {
     in out;
 
   methods = {
-    stdDispatch.eval = self: arg:
-      if isList arg then
-        self.evalList arg
-      else if isAttrs arg then
-        self.evalAttrs arg
-      else self.evalOther arg;
-    simpleNest = {
+    stdDispatch = {
       __functor = _: self: self.eval;
-      inherit (methods.stdDispatch) eval;
+      eval = self: arg:
+        if isList arg then
+          self.evalList arg
+        else if isAttrs arg then
+          self.evalAttrs arg
+        else self.evalOther arg;
+    };
+    simpleNest = methods.stdDispatch // {
       evalList = self: ls: unlines (map (self.nest "list") ls);
       evalAttrs = self: attrs:
         unlines (mapAttrsToList (self.nest "attrs").evalAttr attrs);
@@ -39,14 +40,11 @@ in rec {
       indent-str = self@{level?0,tab?2,...}: str:
         repeatStr level (repeatStr tab " ") + str;
     };
-    simpleXML = {
-      __functor = _: self: self.eval;
-      inherit (methods.stdDispatch) eval;
-      inherit (methods.simpleNest) evalList evalAttrs nest indent-str;
+    simpleXML = methods.simpleNest // {
       evalAttr = self: name: value@{attrs?{},children?[]}:
         let
           attrStr = concatStrings (mapAttrsToList nvp attrs);
-          nvp = name: value: '' ${name}="${toString value}"'';
+          nvp = name: value: " ${name}=\"${toString value}\"";
           therest = if isNone children then ''/>''
                     else unlines [
                       ">"
