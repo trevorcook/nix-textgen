@@ -4,13 +4,13 @@
   evalDoc_ = doc: let
     makeOverridable = f: args: f args // { override = args':
       makeOverridable f (args // args');};
-    f = {  name, toText,path?"", mkRef?(self: self.destination)}:
+    f = {  name, toText,path?"", mkRef?(self: self.name)}:
       let
         destination =  path + "/" + name;
         text = toText doc;
         out = writeTextFile { inherit name text destination; };
         outPath = out.outPath + destination;
-        self = { inherit name toText path mkRef
+        self = { inherit doc name toText path mkRef
                  destination text out outPath; };
       in {ref = mkRef self;} // self;
     in makeOverridable f;
@@ -23,10 +23,12 @@
   # Eval mutually dependent documents with a common set of evalDoc attributes.
   # Input docs should be functions from the set of eventual "evaled" documents
   # to a document that is ready for evaluation.
-  evalDocs = attrs@{ toText, path?"", mkRef?(self: self.destination)}: docs:
+  evalDocs = attrs@{ toText, path?"", mkRef?(self: self.name)
+                   , mkName?id}: docs:
    let
      mkAttr = name: doc: self: evalDoc_ (doc self) {
-       inherit toText path name mkRef; };
+       inherit toText path mkRef;
+       name = mkName name; };
     in
       fixAttrs (mapAttrs mkAttr docs);
 
@@ -42,7 +44,7 @@
           else if hasAttr "__default" evalSpecs then
             getAttr "__default" evalSpecs
           else throw ''No evalSpec for ${name} nor "__default" found.'';
-        in evalDoc (spec // { inherit name; }) (doc self);
+        in evalDoc (spec // { name = mkName name; }) (doc self);
     in
       fixAttrs (mapAttrs mkAttr docs);
 
