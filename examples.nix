@@ -53,6 +53,68 @@
       children = { elem3 = {attrs = {id=1;};}; };
     };};
 
+
+
+  /* configdoc = rec {
+    htmldochead = ''<?xml version="1.0" encoding="UTF-8"?>'';
+    emanedoctype = ''<!DOCTYPE nem SYSTEM "file://share/emane/dtd/nem.dtd">'';
+    nem = {
+      platforms.platform = [
+        { id = "1"; params = {addr=1; net="1.1";}; }
+        { id = "2"; params = {addr=2; net="2.2";}; }
+        ];
+      definition = self: [
+        htmldochead
+        emanedoctype
+        { nem.children = [
+          {mac.attrs.definition = "self.macfile";}
+          {transport.attrs.definition = "self.transfile";}
+          {phy.attrs.definition = "self.phyfile";}
+          ];
+        }
+        ];
+    };
+    platform = name: {params,nems}: [
+        xmldochead
+        emanedoctype
+        { platform.children = (mapAttrsToList mkParam params)
+                           ++ (mkPlatformNems name nems)
+                           ; }
+      ];
+    mkPlatformNems = platformname: nems:
+      let
+        mkNemNems = nemname: value:
+          let
+            platformnems = attrByPath ["platforms" platformname ] [] value;
+          in map (mkNems nemname) platformnems;
+        mkNems = nemname: value: {
+          nem.attrs.id = value.id;
+          nem.attrs.definition = "nem-file";
+          nem.children.transport.attrs.definition = "transport-file";
+          nem.children.transport.children =
+            mapAttrsToList mkParam value.params;
+          };
+      in concatLists (mapAttrsToList mkNemNems nems);
+
+    mkParam = name: value: { param.attrs = { inherit name value; }; };
+    mkPlatformNem = id: value:
+      { nem.attrs.id = value.id;
+        nem.attrs.definition = "nem-file";
+        nem.children.transport.attrs.definition = "transport-file";
+        nem.children.transport.children = mapAttrsToList mkParam value.params;
+      };
+
+  };
+
+  pparams1 = {fixedant = "0.0"; bwidth="1M";};
+  platform1 = platform-file "platform" {
+    params = {fixedant = "0.0"; bwidth="1M";};
+    nems = { inherit nem1; };
+  }; */
+
+
+
+
 /*  ''
 <platform>
   <param name="otamanagerchannelenable" value="on"/>

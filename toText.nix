@@ -17,7 +17,9 @@ in rec {
       out = attrs // (mapAttrs mkMethod methods);
     in out;
 
+  # Collections of methods suitable for turing into "objects" with nu.
   methods = {
+    # Objects that will select option based of an input element's structure.
     stdDispatch = {
       __functor = _: self: self.eval;
       eval = self: arg:
@@ -27,18 +29,31 @@ in rec {
           self.evalAttrs arg
         else self.evalOther arg;
     };
+    # Based on sdtDispatch, indent eventual string output based
+    # on nested-ness inside a structure.
     simpleNest = methods.stdDispatch // {
-      evalList = self: ls: unlines (map (self.nest "list") ls);
+      evalList = self: ls: self.unlines (map (self.nest "list") ls);
       evalAttrs = self: attrs:
-        unlines (mapAttrsToList (self.nest "attrs").evalAttr attrs);
+        self.unlines (mapAttrsToList (self.nest "attrs").evalAttr attrs);
       evalAttr = self: name: value: self value;
       evalOther = self: value: self.indent-str (toString value);
+      # nest another level if not at the top of the structure or an
+      # lsit followed by a attribute set. The reason for this is to
+      # allow specific ordering of attributes by breaking attr sets into
+      # lists of attribute sets.
       nest = self@{ above?"top", level?0,... }: type:
         if "top" == above || (type == "attrs" && above == "list") then
           { above = type; inherit level;}
         else { above = type; level = level + 1; };
-      indent-str = self@{level?0,tab?2,...}: str:
-        repeatStr level (repeatStr tab " ") + str;
+      no-formatting = self: {formatting-off = true;};
+      indent-str = self@{level?0,tab?2,formatting-off?false...}: str:
+        if formatting-off
+          then str
+          else repeatStr level (repeatStr tab " ") + str;
+      unlines = self@{formatting-off?false}:
+        let sep = if formatting-off then "" else "\n";
+        in concatStringsSep sep;
+
     };
     simpleXML = methods.simpleNest // {
       evalAttr = self: name: value@{attrs?{},children?[]}:
@@ -68,124 +83,5 @@ in rec {
     ${doc.body}
     '';
 
-  /* # This evaluation funcition will indent nested levels of attribute
-  # sets and lists, casting all else to strings.
-  evalIndentNesting =
-    let
-      unlines = concatStringsSep "\n" ;
-    in {
-      above = "top";
-      tab = 2;
-      level = 0;
-      __functor = self: body:
-        if isList body then
-          unlines (map (self.inc "list" self) body)
-        else if isAttrs body then
-          self.evalAttrs self body
-        else self.indent self (toString body);
-      evalAttrs = self: value:
-         unlines (mapAttrsToList (self.evalAttr (self.inc "attrs" self)) value);
-      evalAttr = self: name: value: self value;
-      # increase indent level with some special cases.
-      inc = type: self:
-        if "top" == self.above || (type == "attrs" && self.above == "list") then
-          self // { above = type; }
-        else
-          self // { above = type;
-                    level = self.level + 1; };
-      # Indent a string according to its current level and tab width.
-      indent = self@{level,tab, ...}: str:
-        let
-          repeat = n: a: concatStrings (map (_: a) (range 1 n));
-        in repeat level (repeat tab " ") + str;
-
-      }; */
-
-   eval-attr-doc1 = self: name: value:
-    let
-      unlines = concatStringsSep "\n" ;
-      shSt = self: ''st=${toString self.level},${self.above}'';
-    in
-        if isString value then
-          self.indent self ''<${name} ${value} ${shSt self}/>''
-        else
-          unlines [
-            (self.indent self ''<${name} ${shSt self}>'')
-            (self value)
-            (self.indent self ''</${name} ${shSt self}>'')
-            ];
-
-   /* eval-attrs-doc1 = self: attrs:
-    if attrs ? "entity"
-    let
-      unlines = concatStringsSep "\n" ;
-      shSt = self: ''st=${toString self.level},${self.above}'';
-    in
-        if isString value then
-          self.indent self ''<${name} ${value} ${shSt self}/>''
-        else
-          unlines [
-            (self.indent self ''<${name} ${shSt self}>'')
-            (self value)
-            (self.indent self ''</${name} ${shSt self}>'')
-            ]; */
-
-
 
   }
-
-
-
-
-/* # Old attempta
-ap = evaldoc evalFun1 "ap" apdoc {};
-
-# The texts.
-hibye = evaldocs "xx" evalFun1 {inherit hidoc apdoc byedoc;};
-  evalFun1 = {
-    toText = docToText;
-    path = "";
-    makeReference = self : rec {
-      local = self.destination + self.name;
-      global = self.outPath + local;
-    };
-  };
-
-
-  # Evaluation of a doc according to a certain rendering
-  # and depending on other evaluated docs.
-  evaldoc = ef: name: doc: docs:
-    let
-      a = {
-        inherit (ef) path;
-        destination = a.path + "/" + name;
-        text = ef.toText (doc docs);
-        file = writeTextFile { inherit (a) name text destination; };
-        outPath = a.file.outPath;
-        inherit name;
-        };
-    in { reference = ef.makeReference a; } // a;
-
-  # Evaluation of aset of recursively dependendent docs a la evaldoc.
-  evaldocs =  name: ef: docs_ :
-    let
-      mkdocs = self: mapAttrs (name: doc: evaldoc ef name doc self) docs_;
-      docs = fix mkdocs;
-      paths = mapAttrsToList (n: v: v.file) docs;
-      files  = symlinkJoin { inherit paths name; passthru = {inherit docs;};};
-      texts = mapAttrs (n: v: v.text) docs;
-    in { inherit docs files paths texts; }; */
-
-
-  /* # Evaluation of aset of recursively dependendent docs a la evaldoc.
-  # Joins the docs in symlink, thinking bad approach.
-  evalDocs1 =  attrs@{ toText, name, path?"", mkRef?(self: self.outPath)}: docs_ :
-    let
-      mkdocs = self:
-        mapAttrs (name: doc: evalDoc (attrs//{inherit name;}) (doc self)) docs_;
-      docs = fix mkdocs;
-      paths = mapAttrsToList (n: v: v.file) docs;
-      files  = symlinkJoin { inherit paths name;};
-      texts = mapAttrs (n: v: v.text) docs;
-    in { inherit docs files paths texts; };
- */
