@@ -50,7 +50,7 @@ in rec {
         if formatting-off
           then str
           else repeatStr level (repeatStr tab " ") + str;
-      unlines = self@{formatting-off?false}:
+      unlines = self@{formatting-off?false,...}:
         let sep = if formatting-off then "" else "\n";
         in concatStringsSep sep;
 
