@@ -46,7 +46,7 @@ in rec {
           { above = type; inherit level;}
         else { above = type; level = level + 1; };
       no-formatting = self: {formatting-off = true;};
-      indent-str = self@{level?0,tab?2,formatting-off?false...}: str:
+      indent-str = self@{level?0,tab?2,formatting-off?false,...}: str:
         if formatting-off
           then str
           else repeatStr level (repeatStr tab " ") + str;
