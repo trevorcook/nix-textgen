@@ -1,4 +1,4 @@
-{ lib, textgen } : with lib; with textgen; with textgen.toText; rec {
+{ lib, textgen } : with lib; with textgen.lib; with textgen.lib.toText; rec {
   inherit lib; inherit textgen;
   inherit (textgen) toText;
   # A nix expression representing a document, a "textgen"

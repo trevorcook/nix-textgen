@@ -1,11 +1,15 @@
 let
-  pkgs =  import <nixpkgs> {};
-  /* inherit (pkgs.envth) metafun; */
-  /* envth = pkgs.envth.override {metafun = pkgs.metafun.override {debug=true;};}; */
-  /* nixdoc_ = import ./nixdoc.nix {
-  inherit (pkgs) lib writeTextFile symlinkJoin; }; */
+  nixpkgs = import <nixpkgs> { };
+  metafun-src = builtins.fetchGit {
+      url = https://github.com/trevorcook/nix-metafun.git ;
+      rev = "9901a95a1d995481ffa4d5f101eafc2cbdba7eef"; };
+  metafun = import metafun-src {inherit (nixpkgs) lib;};
+  textgen = import ./textgen {
+    inherit (nixpkgs) lib writeTextFile symlinkJoin writeScriptBin;
+    inherit metafun;
+  };
 in
 {definition ? ./textgen-env.nix }:
-  pkgs.callPackage definition {
+  nixpkgs.callPackage definition { inherit metafun textgen;
     /* inherit envth; */
   }
