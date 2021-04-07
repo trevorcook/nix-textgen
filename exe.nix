@@ -44,8 +44,6 @@
           textgen_out=''${textgen_out:=$attr_out_path}
           attr="''${textgen_attr_prefix}$2"
 
-          declare -p textgen_out attr attr_out_path file no_copy
-
           [[ -e $textgen_out ]] && rm -r $textgen_out
           nix-build --attr "$attr" --out-link $textgen_out $file
 
