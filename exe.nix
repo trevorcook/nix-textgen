@@ -1,7 +1,12 @@
-{metafun, writeScriptBin}: writeScriptBin "textgen" (
-  metafun.mkCommand "textgen" {
+{metafun, writeScriptBin}:
+let
+  mk-help = hook: {
+    desc = "Show this help.";
+    inherit hook; };
+in
+  writeScriptBin "textgen" (metafun.mkCommand "textgen" {
     desc = "Generate textgen documents.";
-    opts = {help = "exec textgen help";};
+    opts = { help = mk-help "exec textgen help";};
     commands = {
       generate =
         let
@@ -24,7 +29,7 @@
         in {
         desc = "Create file(s) from a textgen generated text.";
         opts = {
-          help = "exec textgen generate help";
+          help = mk-help "exec textgen generate help";
           o = set-out;
           out = set-out;
           p = pre-out;
@@ -52,7 +57,9 @@
         };
       copy-result = {
         desc = ''Replace a nix-build "result" link with the linked files.'';
-        opts = { help = "textgen copy-results help"; };
+        opts = {
+          help = mk-help "textgen copy-results help";
+          };
         args = ["file"];
         hook = ''
           if [[ -L $1 ]]; then
@@ -65,24 +72,5 @@
           '';
       };
     };
-  })
-/* {
-  name = "textgen";
-
-}  */
-        /* args = [ { name="example"; type = attrNames passthru.examples; }];
-        hook = ''
-          echo $1
-          nix-build --attr "examples.$1.out" --out-link "examples" \
-            "$( env-call $(env-home-dir)/$definition )"
-          ''; */
-        /* args = [ { name="host"; type = attrNames passthru.cfg; }];
-        hook = ''
-          echo $1
-          nix-build --attr "cfg.$1.out" --out-link "emanecfgs" \
-            "$( env-call $(env-home-dir)/$definition )"
-          ''; */
-/* in stdenv.mkDerivation {
-  name = "textgen";
-
-} */
+  }
+  )

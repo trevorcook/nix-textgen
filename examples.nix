@@ -1,6 +1,8 @@
-{ lib, textgen } : with lib; with textgen.lib; with textgen.lib.toText; rec {
+{ lib, textgen } : with lib;
+with textgen.lib;
+with textgen.lib.toText; rec {
   inherit lib; inherit textgen;
-  inherit (textgen) toText;
+  inherit (textgen.lib) toText;
   # A nix expression representing a document, a "textgen"
   mydocs = {
     hi = self@{bye, ... }: {
@@ -39,6 +41,8 @@
                         name = "example1.txt"; } (docs.example1 {});
     example2 = evalDoc { toText = simpleXML;
                          name = "example2.xml"; } (docs.example2 {});
+    example3 = evalDoc { toText = simpleXML;
+                         name = "example3.xml"; } (docs.example3 {});
   };
 
   docs.example1 = {}:
@@ -47,11 +51,37 @@
         ''- Supporting idea "b"''
       ]
     ];
-  docs.example2 = {}:{
-    elem = {
-      attrs = {id = "plat1";};
-      children = { elem3 = {attrs = {id=1;};}; };
-    };};
+  docs.example2 = {}: {
+    elem1 = {
+      attrs = {id = "e1";};
+      children = {
+        elem2 = { attrs = {id=2;};};
+        elem3 = {
+          attrs = {id=3;};
+          children = self: self.no-formatting {
+            elem4 = {attrs = {id="4";}; children = "elm4 child";};
+            elem5 = {children = ["<x/>" "<y/>"];};
+          };
+        };
+      };
+    };
+  };
+  docs.example3 = {}: {
+    elem1 = {
+      attrs = {id = 1;};
+      children = {
+        elem1-1 = 1;
+        elem2-2 = ''the value of this is a
+                    string with a line break'';
+      };
+    };
+    elem2 =  {
+      attrs = {id = 2;};
+      children = {
+        elem2-1 =  { attrs = {id=2.1;};};
+      };
+    };
+  };
 
 
 

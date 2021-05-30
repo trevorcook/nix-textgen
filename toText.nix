@@ -27,24 +27,34 @@ in rec {
           self.evalList arg
         else if isAttrs arg then
           self.evalAttrs arg
+        else if isFunction arg then
+          self.evalFunction arg
         else self.evalOther arg;
+      evalList = self: ls: concatStringsSep "\n" (map self ls);
+      evalAttrs = self: mapAttrsToList self.evalAttr;
+      evalAttr = self: name: value: self value;
+      evalOther = self: value: toString value;
+      evalFunction = self: f: f self;
     };
     # Based on sdtDispatch, indent eventual string output based
     # on nested-ness inside a structure.
     simpleNest = methods.stdDispatch // {
+      # Overwriting stdDispatch methods
       evalList = self: ls: self.unlines (map (self.nest "list") ls);
       evalAttrs = self: attrs:
         self.unlines (mapAttrsToList (self.nest "attrs").evalAttr attrs);
-      evalAttr = self: name: value: self value;
+      evalAttr = self: n: v: self v;
       evalOther = self: value: self.indent-str (toString value);
-      # nest another level if not at the top of the structure or an
-      # lsit followed by a attribute set. The reason for this is to
+      # nest provides indents:
+      # nests a level if not at the top of the structure or an
+      # list followed by a attribute set. The reason for this is to
       # allow specific ordering of attributes by breaking attr sets into
       # lists of attribute sets.
       nest = self@{ above?"top", level?0,... }: type:
         if "top" == above || (type == "attrs" && above == "list") then
           { above = type; inherit level;}
         else { above = type; level = level + 1; };
+      # no-formatting will turn off indents and added line breaks.
       no-formatting = self: {formatting-off = true;};
       indent-str = self@{level?0,tab?2,formatting-off?false,...}: str:
         if formatting-off
@@ -56,32 +66,34 @@ in rec {
 
     };
     simpleXML = methods.simpleNest // {
-      evalAttr = self: name: value@{attrs?{},children?[]}:
+      evalAttr = self: name: value:
         let
-          attrStr = concatStrings (mapAttrsToList nvp attrs);
+          attrsAndChildren = {attrs?{},children?[]}:
+            if isNone children then
+              (self.indent-str ''<${name}${attrStr attrs}/>'')
+            else
+              self.unlines [
+                (self.indent-str ''<${name}${attrStr attrs}>'')
+                ((self.nest "attrs") children)
+                (self.indent-str ''</${name}>'')];
+          attrStr = attrs: concatStrings (mapAttrsToList nvp attrs);
           nvp = name: value: " ${name}=\"${toString value}\"";
-          therest = if isNone children then ''/>''
-                    else unlines [
-                      ">"
-                      ((self.nest "attrs") children)
-                      (self.indent-str ''</${name}>'')];
-        in (self.indent-str ''<${name}${attrStr}'') + therest;
-    };
+        in if isFunction value then
+             value self
+           else if isAttrs value then
+             attrsAndChildren value
+           else self.indent-str (concatStrings [ ''<${name}>''
+                                                 (self.no-formatting value)
+                                                 ''</${name}>''] );
+       };
   };
 
   simpleNest = nu methods.simpleNest {level=0; tab=2; above="top";};
   simpleXML = nu methods.simpleXML {level=0; tab=2; above="top";};
 
-
-
-
-
-
-
   docToText = doc: ''
     # ${doc.heading}
     ${doc.body}
     '';
-
 
   }

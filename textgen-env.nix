@@ -1,33 +1,34 @@
-{ envth, callPackage, lib, writeTextFile, symlinkJoin, metafun, textgen } :
-with envth; with lib;
-let textgen = callPackage ./textgen.nix { }; in
-/* let textgen = import ./textgen.nix {
-  inherit lib writeTextFile symlinkJoin; }; in */
-mkEnvironment rec
+let
+  nixpkgs = import <nixpkgs> { };
+  /* metafun-src = builtins.fetchGit {
+      url = https://github.com/trevorcook/nix-metafun.git ;
+      rev = "9901a95a1d995481ffa4d5f101eafc2cbdba7eef"; };
+  metafun = import metafun-src {inherit (nixpkgs) lib;}; */
+  inherit (nixpkgs) metafun;
+  _textgen = import ./textgen.nix {
+    inherit (nixpkgs) lib writeTextFile symlinkJoin writeScriptBin;
+    inherit metafun;
+  };
+in
+
+{ envth, callPackage, lib , textgen?_textgen
+  ,metafun } :
+with envth; with lib; mkEnvironment rec
 { name = "textgen-env";
   definition = ./textgen-env.nix;
   shellHook = ''
     testfile="$( env-call $(env-home-dir)/$definition )"
   '';
-  env-caller = ./shell.nix;
   paths = [textgen];
-  passthru = callPackage ./examples.nix { inherit textgen; }
-    // { cfg = callPackage ./emaneconfig {inherit textgen;}; };
+  passthru = callPackage ./examples.nix { inherit textgen; };
     envlib = {
-      /* textgen = {
-        desc = "textgen"; */
-        /* args = [ { name="example"; type = attrNames passthru.examples; }];
+      textgen-examples = {
+        desc = "Generate Example documentation from ./examples.nix";
+        args = [ { name="example"; type = attrNames passthru.examples; }];
         hook = ''
-          echo $1
-          nix-build --attr "examples.$1.out" --out-link "examples" \
-            "$( env-call $(env-home-dir)/$definition )"
-          ''; */
-        /* args = [ { name="host"; type = attrNames passthru.cfg; }];
-        hook = ''
-          echo $1
-          nix-build --attr "cfg.$1.out" --out-link "emanecfgs" \
-            "$( env-call $(env-home-dir)/$definition )"
-          ''; */
-      /* }; */
+          textgen generate "$( env-call $(env-home-dir)/$definition )" \
+          "examples.$1"
+          '';
+        };
   };
 }

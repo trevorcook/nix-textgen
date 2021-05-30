@@ -1,70 +1,54 @@
 # TextGen: Text Generation from Nix Expressions
 
-The `textgen` nix library includes utilities for generating text from
-nix expressions. The text rendering is performed via user supplied renderer functions for handling specific use cases. The library
-provides a simple but powerful utility for creating new
-renderers, as well as processing collections of documents that
-reference eachother.
-
-## Vocabulary
-
-In this document, the following terms will be used.
-
-- doc: A nix expression that represents a document.
-- render: Convert a doc to nix text.
-- evaluate: Apply a renderer to a doc, create a file from the
-  text, and collect text, file, and some other attributes into an
-  attribute set.
-- docspec: Additional inputs that describe the rendered text: name,
-  location, etc., used in the evaluation.
-- gentext: The output of evaluation. An attribute set containing
-  the various inputs and outputs.
+The `textgen` nix package provides utilities for generating text from
+nix expressions; specifically, a command line utility and nix library.
+The library provides functions for:
+  - Generating mutually referential documents based on user supplied render functions.
+  - A simple and powerful function, `nu`, for creating object oriented style
+  text renders.
+The command line utility works with the library functions to build the
+text output in the nix store and copy them to a local directory.
 
 ## Getting Started
 
-To follow along with the examples, clone this repository and enter
-`nix-shell`. Examples can be built by running `textgen` with the
-appropriate example name argument (tab completion or `textgen help`
-will show available). (The definition of the `textgen` is given in
-the `envlib` attribute of `./textgen-env.nix`). The command `env-repl`
-will open a `nix repl` with the attributes of `./textgen-env.nix`
-preloaded. Notably, the definitions in `./examples.nix` assigned
-in `passthru`.
+To generate examples, clone this repository and enter `nix-shell`.
+- Examples can be built by running `textgen-examples <example>`, with the
+  appropriate example name argument (tab completion will show available).
+- The definition of the examples are contained in `./examples.nix`.
+- The command `env-repl` will open a `nix repl` with the attributes of
+  `./textgen-env.nix` preloaded. Notably, the definitions in `./examples.nix` are assigned in `passthru`.
+- The definition of `textgen-examples` is given in
+  `textgen-env.envlib.textgen-examples`. It shows the underlying call to
+  `textgen`.
 
-## An Indenting Render
+## Evaluating Documents
 
-Consider this simple document. It lists a few bullet points wherein
-we use nested lists to represent nested bullet levels.
+The `textgen` executable creates text files in the nix store and copies them
+to the local directory. See `textgen help` for details. `textgen` generates
+the files based on outputs of calls to `evalDoc` etc. defined in
+`./evalDoc.nix`.
 
-```
-example1 = [
-  "- Top Level Idea"
-  [ ''- Supporting idea "b"''
-    ''- Supporting idea "a"'']
-  ]
-```
-Running `textgen example1` generates a link to `/nix/store`, `examples`. Found inside is `example1.nix` with the following text.
+`evalDoc` expects two arguments, a "`docspec`" and a nix expression that will
+ultimately be turned into text. The `docspec` is an attribute set containing
+the following:
 
-```
-- Top Level Idea
-  - Supporting idea "a"
-  - Supporting idea "b"
-```
-Loading `env-repl`, we can inspect the `examples.example1` to find
-an attribute set with many elements, notably `out` for the derivation
-of the file and `text` for the rendered text.
+  - `name`: The file name (no default)
+  - `path`: Additional local path (default: `""`)
+  - `mkRef`: Function for defining "`ref`" attribute
+    (default: `self: self.name`)
+  - `toText`: A function for turning input argument into text
 
-Looking in `./examples.nix`, we see that `example1` is defined like:
-
-```example1 = evalDoc { toText = indentNesting.eval;
-                        name = "example1.txt"; } example1;
-```
-using `evalDoc` from `./evalDoc.nix` and the renderer `indentNesting.eval` from `./toText.nix`.
+The `evalDocs` function is based on `evalDoc`, except instead of a single nix
+expression to evaluate, it expects an attribute set of nix functions. It
+applies each of these to the fixed point output so that each document in the
+set can reference the others.
 
 ## Custom Renderers
 
-`textgen` supplies the novel `nu` utility defined in `./toText.nix` to
-help define new renderers.
+The original motivation for this project was to generate custom XML schema
+from nix. As such, `./toText.nix` provides the function `simpleXML`.
+`simpleXML` is defined using the novel `nu` utility, a function for defining
+new text renderers, and whos design is outlined in this section.
 
 ### Nu objects
 
@@ -95,7 +79,7 @@ but with `level` incremented by one. Thanks to laziness, these
 nested attribute sets contain every combination of incrementing and
 decrementing. As a result, indexing into this infinite tree such as
 in the expression, `counter.inc.inc`, is possible. Even better, the
-syntax is so similar to OOP that such expressions can be
+syntax is similar enough to OOP that such expressions can be
 understood as simply incrementing the `level` attribute twice.
 
 #### Properties
@@ -108,43 +92,3 @@ any number of additional arguments, in which case they can be called
 as in, for example, `(counter.set 3).inc.inc`. Methods may return
 any valid nix type: returned attribute sets will be merged with
 the original object; other types are returned as is.
-
-### A Little XML
-
-Using `nu` we create a little evaluator for creating xml documents.
-We are interested in generating documents like the following
-
-```
-<?xml version='1.0' encoding='utf-8'?>
-<element1 attr1="val1" attr2="val2">
-    <element2 attr1="val1" attr2="val2"/>
-</element1>
-```
-
-from docs with attributes like
-```
-{ element1 = { attrs = { .. };
-               children = []; };
-}
-```
-
-The following definition provides a good first pass.
-
-```
-simpleXML =
-let unlines = concatStringsSep "/n"; in
-nu {
-  eval = self: body: unlines (mapAttrsToList self.evalElem body);
-  evalElem = self: name: value@{attrs?{},children?[]}:
-    if children == [] then
-      ''<${name} ${self.makeAttrs attrs}/>''
-    else
-    unlines (
-      [''<${name} ${self.makeAttrs attrs}>'' ] ++
-      (map self.eval children) ++
-      [''</${name}>'']
-      );
-  makeAttrs = self: attrs:
-    concatStringsSep " " (mapAttrsToList (n: v: ''${n}="${v}"'') attrs);
-} {};
-```
