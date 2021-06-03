@@ -3,6 +3,8 @@ let
   unlines = concatStringsSep "\n" ;
   repeatStr = n: str: concatStrings (map (_: str) (range 1 n));
   isNone = arg: isNull arg || arg == {} || arg == [];
+  makeOverridable = f: args: f args // { override = args':
+    makeOverridable f (args // args');};
 
 in rec {
   nu = methods: attrs:
@@ -71,25 +73,36 @@ in rec {
           attrsAndChildren = {attrs?{},children?[]}:
             if isNone children then
               (self.indent-str ''<${name}${attrStr attrs}/>'')
-            else
+            else if isList children || isAttrs children then
               self.unlines [
                 (self.indent-str ''<${name}${attrStr attrs}>'')
                 ((self.nest "attrs") children)
-                (self.indent-str ''</${name}>'')];
+                (self.indent-str ''</${name}>'')]
+             else self.indent-str (concatStrings
+               [ ''<${name}${attrStr attrs}>''
+                 (self.no-formatting children)
+                 ''</${name}>''] );
           attrStr = attrs: concatStrings (mapAttrsToList nvp attrs);
           nvp = name: value: " ${name}=\"${toString value}\"";
         in if isFunction value then
              value self
            else if isAttrs value then
              attrsAndChildren value
+           else if isList value then
+             self.unlines [
+                (self.indent-str ''<${name}>'')
+                ((self.nest "attrs") value)
+                (self.indent-str ''</${name}>'')]
            else self.indent-str (concatStrings [ ''<${name}>''
                                                  (self.no-formatting value)
                                                  ''</${name}>''] );
        };
   };
 
-  simpleNest = nu methods.simpleNest {level=0; tab=2; above="top";};
-  simpleXML = nu methods.simpleXML {level=0; tab=2; above="top";};
+  simpleNest = {level?0,tab?2,above?"top"}:
+    nu methods.simpleNest {inherit level tab above;};
+  simpleXML = {level?0,tab?2,above?"top"}:
+    nu methods.simpleXML {inherit level tab above;};
 
   docToText = doc: ''
     # ${doc.heading}

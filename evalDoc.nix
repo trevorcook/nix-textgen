@@ -32,19 +32,22 @@
     in
       fixAttrs (mapAttrs mkAttr docs);
 
-  # Eval mutually dependent documents with a common set of evalDoc attributes.
+  # Eval mutually dependent documents with a set of same-named docspecs.
+  # A __default docspec can be used as a catchall docspec.
   # Input docs should be functions from the set of eventual "evaled" documents
   # to a document that is ready for evaluation.
   evalDocsAttrs = evalSpecs: docs:
     let
       mkAttr = name: doc: self:
-        let spec =
-          if hasAttr name evalSpecs then
-            getAttr name evalSpecs
-          else if hasAttr "__default" evalSpecs then
-            getAttr "__default" evalSpecs
-          else throw ''No evalSpec for ${name} nor "__default" found.'';
-        in evalDoc (spec // { name = mkName name; }) (doc self);
+        let
+          spec_ =
+            if hasAttr name evalSpecs then
+              getAttr name evalSpecs
+            else if hasAttr "__default" evalSpecs then
+              getAttr "__default" evalSpecs
+            else throw ''No evalSpec for ${name} nor "__default" found.'';
+          spec = removeAttrs spec_ ["mkName"] // { name = spec_.mkName name; };
+        in evalDoc spec (doc self);
     in
       fixAttrs (mapAttrs mkAttr docs);
 
