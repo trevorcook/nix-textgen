@@ -1,18 +1,4 @@
-let
-  nixpkgs = import <nixpkgs> { };
-  /* metafun-src = builtins.fetchGit {
-      url = https://github.com/trevorcook/nix-metafun.git ;
-      rev = "9901a95a1d995481ffa4d5f101eafc2cbdba7eef"; };
-  metafun = import metafun-src {inherit (nixpkgs) lib;}; */
-  inherit (nixpkgs) metafun;
-  _textgen = import ./textgen.nix {
-    inherit (nixpkgs) lib writeTextFile symlinkJoin writeScriptBin;
-    inherit metafun;
-  };
-in
-
-{ envth, callPackage, lib , textgen?_textgen
-  ,metafun } :
+{ envth, callPackage, lib , textgen } :
 with envth; with lib; mkEnvironment rec
 { name = "textgen-env";
   definition = ./textgen-env.nix;
@@ -31,4 +17,5 @@ with envth; with lib; mkEnvironment rec
           '';
         };
   };
+  env-caller = { definition = ./shell.nix; };
 }
