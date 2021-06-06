@@ -1,5 +1,4 @@
-{ definition ? ./textgen-env.nix,
-  }:
+{ definition ? ./textgen-env.nix }:
 let
   metafun-src = (builtins.fetchGit {
       url = https://github.com/trevorcook/nix-metafun.git ;
