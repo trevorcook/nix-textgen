@@ -98,7 +98,7 @@ in rec {
                                                  ''</${name}>''] );
        };
   };
-
+  stdDispatch = nu methods.stdDispatch {};
   simpleNest = {level?0,tab?2,above?"top"}:
     nu methods.simpleNest {inherit level tab above;};
   simpleXML = {level?0,tab?2,above?"top"}:

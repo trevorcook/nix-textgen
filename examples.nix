@@ -12,7 +12,7 @@ with textgen.lib.toText; rec {
     } { count = 0; };
 
   examples = {
-    example0 = evalDoc { toText = stdDispatch {};
+    example0 = evalDoc { toText = stdDispatch;
                          name = "example0.md"; } docs.example0;
     example1 = evalDoc { toText = simpleNest {};
                          name = "example1.md"; } docs.example1;
@@ -40,7 +40,7 @@ with textgen.lib.toText; rec {
   docs.example0 =
     { item1 = "A simple document for `stdDispatch` renderer. ";
       item2 = [ "Nix structures are traversed "
-                [" until basic data is encountered, `toString`-ed. "]
+                [" until basic data is encountered and `toString`-ed. "]
                "All else is lost."];
     };
   docs.example1 =
@@ -56,8 +56,8 @@ with textgen.lib.toText; rec {
     ];
   docs.example2 = {
     description = [''A sample XML built from a Nix expression that mirrors''
-                    ''the format of this output XML document. Rendered with
-                    `simpleXML`.''];
+                    ''the format of this output XML document. Rendered with''
+                    ''`simpleXML`.''];
     platform = {
       children = [
         { interface = {
